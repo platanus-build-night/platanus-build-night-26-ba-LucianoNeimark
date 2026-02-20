@@ -36,7 +36,7 @@ def test_apply_bulk_discount_at_threshold():
     assert apply_bulk_discount(100.0, 20) == 90.0
 def test_apply_bulk_discount_above_threshold():
     pass
-
+    assert apply_bulk_discount(100.0, 5) == 100.0
 def test_apply_bulk_discount_below_threshold():
     pass
 
