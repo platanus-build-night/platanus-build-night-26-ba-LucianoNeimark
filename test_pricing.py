@@ -39,7 +39,8 @@ def test_apply_bulk_discount_above_threshold():
     assert apply_bulk_discount(100.0, 5) == 100.0
 def test_apply_bulk_discount_below_threshold():
     pass
-
+    with pytest.raises(ValueError):
+        apply_bulk_discount(100.0, -1)
 def test_apply_bulk_discount_negative_quantity_raises():
     pass
 
