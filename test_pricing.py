@@ -92,4 +92,9 @@ def test_apply_coupon_invalid_code_raises():
 
 
 def test_apply_coupon_halfoff():
-    pass
+    from pricing import apply_coupon
+    result = apply_coupon(80.0, 'HALFOFF')
+    assert result == 40.0, f'Expected 40.0, got {result}'
+
+    result = apply_coupon(0.0, 'HALFOFF')
+    assert result == 0.0
