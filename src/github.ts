@@ -130,11 +130,11 @@ export function buildSkeletonContent(
   if (existingLineCount === 0 && newTests.length > 0) {
     const parts = sourceFile.split('/')
     const module = parts[parts.length - 1].replace(/\.py$/, '')
-    lines.push('import pytest', `from ${module} import *`, '')
+    lines.push('import pytest', `from ${module} import *`)
   }
 
   for (const test of newTests) {
-    lines.push('', `def ${test.functionName}():`, '    pass')
+    lines.push('', '', `def ${test.functionName}():`, '    pass')
     const passLine = existingLineCount + lines.length
     stubs.push({ functionName: test.functionName, passLine })
   }

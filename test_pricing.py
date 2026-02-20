@@ -28,21 +28,3 @@ def test_format_price_unknown_currency_fallback():
 def test_format_price_two_decimal_places():
     assert format_price(10, "USD") == "$10.00"
     assert format_price(3.1, "USD") == "$3.10"
-
-
-    assert apply_bulk_discount(100.0, 10) == 90.0
-def test_apply_bulk_discount_at_threshold():
-    pass
-    assert apply_bulk_discount(100.0, 20) == 90.0
-def test_apply_bulk_discount_above_threshold():
-    pass
-    assert apply_bulk_discount(100.0, 5) == 100.0
-def test_apply_bulk_discount_below_threshold():
-    pass
-    with pytest.raises(ValueError):
-        apply_bulk_discount(100.0, -1)
-def test_apply_bulk_discount_negative_quantity_raises():
-    pass
-
-def test_apply_bulk_discount_custom_threshold_and_discount():
-    pass

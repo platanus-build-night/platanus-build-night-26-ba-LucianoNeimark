@@ -90,7 +90,7 @@ async function run(): Promise<void> {
       if (stubs.length === 0) continue
 
       const finalContent = existing
-        ? existing.content.trimEnd() + '\n\n\n' + newContent
+        ? existing.content.trimEnd() + '\n' + newContent
         : newContent
 
       lastSha = await createOrUpdateSkeletonFile(token, testPath, finalContent, branch, existing?.sha)
