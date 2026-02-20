@@ -80,6 +80,16 @@ export function parsePreviousSuggestions(body: string): string[] {
   return JSON.parse(match[1]).suggestions ?? []
 }
 
+export function parseDeclinedSuggestions(body: string): string[] {
+  const declined: string[] = []
+  const regex = /^- \[x\] (.+)$/gm
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(body)) !== null) {
+    declined.push(match[1].trim())
+  }
+  return declined
+}
+
 export function deriveTestFilePath(sourceFile: string): string {
   const parts = sourceFile.split('/')
   const basename = parts[parts.length - 1]
@@ -169,6 +179,33 @@ export async function createOrUpdateSkeletonFile(
 
 export function buildSuggestionBody(test: GeneratedTest): string {
   return `\`\`\`suggestion\n${test.suggestionBody}\n\`\`\``
+}
+
+export async function deletePreviousSuggestions(token: string): Promise<void> {
+  const pr = github.context.payload.pull_request
+  if (!pr) return
+
+  const octokit = github.getOctokit(token)
+  const { owner, repo } = github.context.repo
+
+  const comments = await octokit.paginate(octokit.rest.pulls.listReviewComments, {
+    owner,
+    repo,
+    pull_number: pr.number,
+    per_page: 100,
+  })
+
+  const botSuggestions = comments.filter(
+    (c) => c.user?.login === 'github-actions[bot]' && c.body.includes('```suggestion'),
+  )
+
+  for (const c of botSuggestions) {
+    try {
+      await octokit.rest.pulls.deleteReviewComment({ owner, repo, comment_id: c.id })
+    } catch (err) {
+      console.error(`Failed to delete comment ${c.id}:`, err)
+    }
+  }
 }
 
 export async function postSkeletonReview(

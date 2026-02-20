@@ -5,6 +5,7 @@ import {
   findBotComment,
   updateComment,
   parsePreviousSuggestions,
+  parseDeclinedSuggestions,
   deriveTestFilePath,
   parseExistingFunctionNames,
   getExistingFileContent,
@@ -12,17 +13,20 @@ import {
   createOrUpdateSkeletonFile,
   buildSuggestionBody,
   postSkeletonReview,
+  deletePreviousSuggestions,
   ReviewComment,
 } from './github'
 import { analyzeChanges, AnalysisResult, GeneratedTest } from './claude'
 
-function buildCommentBody(result: AnalysisResult): string {
+function buildCommentBody(result: AnalysisResult, declinedSuggestions: string[] = []): string {
   const lines = ['## PR Test Checker', '', result.summary]
   const all = [...result.coveredTests, ...result.missingTests]
-  if (all.length > 0) {
-    lines.push('', '**Suggested tests:**')
+  const hasAny = all.length > 0 || declinedSuggestions.length > 0
+  if (hasAny) {
+    lines.push('', '**Suggested tests** (check a box to skip):')
     for (const s of result.coveredTests) lines.push(`- ~~${s}~~ ✓`)
-    for (const s of result.missingTests) lines.push(`- ${s}`)
+    for (const s of result.missingTests) lines.push(`- [ ] ${s}`)
+    for (const s of declinedSuggestions) lines.push(`- [x] ${s}`)
     lines.push('', `<!-- pr-test-checker: ${JSON.stringify({ suggestions: all })} -->`)
   }
   return lines.join('\n')
@@ -40,21 +44,40 @@ async function run(): Promise<void> {
 
   core.setOutput('changed_files', JSON.stringify(files.map((f) => f.filename)))
 
-  const existingComment = await findBotComment(token)
-  const previousSuggestions = existingComment
-    ? parsePreviousSuggestions(existingComment.body)
-    : []
-
-  core.info('Analyzing changes with Claude...')
-  const result = await analyzeChanges(files, anthropicApiKey, previousSuggestions)
-  core.info(`Analysis: ${result.summary}`)
-
   const octokit = github.getOctokit(token)
   const { owner, repo } = github.context.repo
   const pr = github.context.payload.pull_request!
   const branch = (pr.head as { ref: string }).ref
 
-  const commentBody = buildCommentBody(result)
+  const existingComment = await findBotComment(token)
+  const previousSuggestions = existingComment
+    ? parsePreviousSuggestions(existingComment.body)
+    : []
+  const declinedSuggestions = existingComment ? parseDeclinedSuggestions(existingComment.body) : []
+
+  // Fetch full content of existing test files for Claude context
+  const existingTestContents = new Map<string, string>()
+  const candidateTestPaths = [
+    ...new Set(
+      files
+        .filter((f) => f.status !== 'removed' && f.filename.endsWith('.py'))
+        .filter((f) => {
+          const base = f.filename.split('/').pop() ?? ''
+          return !base.startsWith('test_') && !f.filename.includes('_test.') && !f.filename.includes('/tests/')
+        })
+        .map((f) => deriveTestFilePath(f.filename)),
+    ),
+  ]
+  for (const testPath of candidateTestPaths) {
+    const existing = await getExistingFileContent(token, testPath, branch)
+    if (existing) existingTestContents.set(testPath, existing.content)
+  }
+
+  core.info('Analyzing changes with Claude...')
+  const result = await analyzeChanges(files, anthropicApiKey, previousSuggestions, existingTestContents, declinedSuggestions)
+  core.info(`Analysis: ${result.summary}`)
+
+  const commentBody = buildCommentBody(result, declinedSuggestions)
 
   if (existingComment) {
     await updateComment(token, existingComment.id, commentBody)
@@ -69,6 +92,8 @@ async function run(): Promise<void> {
 
   // Phase 3: commit skeleton test stubs and post suggestion review
   if (result.needsTests && result.generatedTests.length > 0) {
+    await deletePreviousSuggestions(token)
+
     const byFile = new Map<string, GeneratedTest[]>()
     for (const t of result.generatedTests) {
       const testPath = deriveTestFilePath(t.sourceFile)

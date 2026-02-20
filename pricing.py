@@ -28,3 +28,10 @@ def apply_bulk_discount(price: float, quantity: int, threshold: int = 10, discou
     if quantity >= threshold:
         return price * (1 - discount)
     return price
+
+
+def calculate_final_price(price: float, coupon_code: str | None = None, tax_rate: float = 0.0) -> float:
+    """Apply optional coupon then tax and return the final price."""
+    if coupon_code:
+        price = apply_coupon(price, coupon_code)
+    return apply_tax(price, tax_rate)
