@@ -48,7 +48,10 @@ def test_apply_bulk_discount_below_threshold():
 
 
 def test_apply_bulk_discount_negative_quantity_raises():
-    pass
+    import pytest
+    from pricing import apply_bulk_discount
+    with pytest.raises(ValueError, match="Quantity cannot be negative"):
+        apply_bulk_discount(100.0, quantity=-1)
 
 
 def test_apply_bulk_discount_custom_threshold_and_discount():
