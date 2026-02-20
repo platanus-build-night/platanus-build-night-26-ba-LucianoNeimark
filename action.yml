@@ -1,0 +1,5 @@
+name: 'PR Test Checker'
+description: 'Checks that PRs have semantic test coverage for pytest projects'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

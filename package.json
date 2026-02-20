@@ -1,0 +1,20 @@
+{
+  "name": "pr-test-checker",
+  "version": "0.1.0",
+  "description": "GitHub Action that checks PRs have semantic test coverage",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs --out-dir dist",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@actions/github": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
