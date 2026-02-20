@@ -98,3 +98,19 @@ def test_apply_coupon_halfoff():
 
     result = apply_coupon(0.0, 'HALFOFF')
     assert result == 0.0
+
+
+def test_calculate_final_price_with_coupon_and_tax():
+    pass
+
+
+def test_calculate_final_price_no_coupon_applies_tax_only():
+    pass
+
+
+def test_calculate_final_price_no_coupon_zero_tax_returns_original():
+    pass
+
+
+def test_calculate_final_price_invalid_coupon_raises():
+    pass
