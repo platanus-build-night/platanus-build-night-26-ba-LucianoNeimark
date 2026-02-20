@@ -29,7 +29,8 @@ function isSourceFile(filename: string): boolean {
 
 function isTestFile(filename: string): boolean {
   const lower = filename.toLowerCase()
-  return lower.includes('/test_') || lower.includes('_test.') || lower.includes('/tests/')
+  const basename = lower.split('/').pop() ?? lower
+  return basename.startsWith('test_') || lower.includes('_test.') || lower.includes('/tests/')
 }
 
 export async function analyzeChanges(
