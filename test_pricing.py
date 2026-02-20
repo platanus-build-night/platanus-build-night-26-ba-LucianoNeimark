@@ -62,3 +62,19 @@ def test_apply_bulk_discount_custom_threshold_and_discount():
     assert apply_bulk_discount(50.0, quantity=5, threshold=5, discount=0.2) == 40.0
     assert apply_bulk_discount(50.0, quantity=4, threshold=5, discount=0.2) == 50.0
     assert apply_bulk_discount(50.0, quantity=10, threshold=5, discount=0.2) == 40.0
+
+
+def test_apply_coupon_valid_code():
+    pass
+
+
+def test_apply_coupon_case_insensitive():
+    pass
+
+
+def test_apply_coupon_invalid_code_raises():
+    pass
+
+
+def test_apply_coupon_halfoff():
+    pass
