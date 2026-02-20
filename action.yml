@@ -1,5 +1,12 @@
 name: 'PR Test Checker'
 description: 'Checks that PRs have semantic test coverage for pytest projects'
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+outputs:
+  changed_files:
+    description: 'JSON array of changed file paths'
 runs:
   using: 'node20'
   main: 'dist/index.js'
