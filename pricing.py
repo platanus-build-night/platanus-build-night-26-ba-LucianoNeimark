@@ -12,6 +12,15 @@ def format_price(price: float, currency: str = "USD") -> str:
     return f"{symbol}{price:.2f}"
 
 
+def apply_coupon(price: float, code: str) -> float:
+    """Apply a coupon code and return the discounted price."""
+    coupons = {"SAVE10": 0.10, "SAVE20": 0.20, "HALFOFF": 0.50}
+    rate = coupons.get(code.upper())
+    if rate is None:
+        raise ValueError(f"Invalid coupon code: {code}")
+    return price * (1 - rate)
+
+
 def apply_bulk_discount(price: float, quantity: int, threshold: int = 10, discount: float = 0.1) -> float:
     """Return discounted unit price when quantity meets or exceeds threshold."""
     if quantity < 0:
