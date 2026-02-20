@@ -82,7 +82,13 @@ def test_apply_coupon_case_insensitive():
 
 
 def test_apply_coupon_invalid_code_raises():
-    pass
+    import pytest
+    from pricing import apply_coupon
+    with pytest.raises(ValueError, match='Invalid coupon code: BOGUS'):
+        apply_coupon(100.0, 'BOGUS')
+
+    with pytest.raises(ValueError):
+        apply_coupon(100.0, '')
 
 
 def test_apply_coupon_halfoff():
