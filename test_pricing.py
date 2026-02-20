@@ -30,7 +30,7 @@ def test_format_price_two_decimal_places():
     assert format_price(3.1, "USD") == "$3.10"
 
 
-
+    assert apply_bulk_discount(100.0, 10) == 90.0
 def test_apply_bulk_discount_at_threshold():
     pass
 
