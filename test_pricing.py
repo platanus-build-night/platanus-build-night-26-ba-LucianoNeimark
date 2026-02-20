@@ -1,5 +1,30 @@
-from pricing import apply_tax
+import pytest
+from pricing import apply_tax, format_price
 
 
 def test_apply_tax_standard_rate():
     assert apply_tax(100, 0.19) == 119.0
+
+
+def test_apply_tax_zero_rate():
+    assert apply_tax(50, 0) == 50.0
+
+
+def test_apply_tax_negative_rate_raises():
+    with pytest.raises(ValueError):
+        apply_tax(100, -0.1)
+
+
+def test_format_price_known_currencies():
+    assert format_price(9.99, "USD") == "$9.99"
+    assert format_price(9.99, "EUR") == "€9.99"
+    assert format_price(9.99, "GBP") == "£9.99"
+
+
+def test_format_price_unknown_currency_fallback():
+    assert format_price(9.99, "JPY") == "JPY 9.99"
+
+
+def test_format_price_two_decimal_places():
+    assert format_price(10, "USD") == "$10.00"
+    assert format_price(3.1, "USD") == "$3.10"
