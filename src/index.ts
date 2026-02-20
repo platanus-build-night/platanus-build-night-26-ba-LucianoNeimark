@@ -1,7 +1,20 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import { getChangedFiles, findBotComment, updateComment, parsePreviousSuggestions } from './github'
-import { analyzeChanges, AnalysisResult } from './claude'
+import {
+  getChangedFiles,
+  findBotComment,
+  updateComment,
+  parsePreviousSuggestions,
+  deriveTestFilePath,
+  parseExistingFunctionNames,
+  getExistingFileContent,
+  buildSkeletonContent,
+  createOrUpdateSkeletonFile,
+  buildSuggestionBody,
+  postSkeletonReview,
+  ReviewComment,
+} from './github'
+import { analyzeChanges, AnalysisResult, GeneratedTest } from './claude'
 
 function buildCommentBody(result: AnalysisResult): string {
   const lines = ['## PR Test Checker', '', result.summary]
@@ -39,6 +52,7 @@ async function run(): Promise<void> {
   const octokit = github.getOctokit(token)
   const { owner, repo } = github.context.repo
   const pr = github.context.payload.pull_request!
+  const branch = (pr.head as { ref: string }).ref
 
   const commentBody = buildCommentBody(result)
 
@@ -51,6 +65,45 @@ async function run(): Promise<void> {
       issue_number: pr.number,
       body: commentBody,
     })
+  }
+
+  // Phase 3: commit skeleton test stubs and post suggestion review
+  if (result.needsTests && result.generatedTests.length > 0) {
+    const byFile = new Map<string, GeneratedTest[]>()
+    for (const t of result.generatedTests) {
+      const testPath = deriveTestFilePath(t.sourceFile)
+      if (!byFile.has(testPath)) byFile.set(testPath, [])
+      byFile.get(testPath)!.push(t)
+    }
+
+    const allComments: ReviewComment[] = []
+    let lastSha: string | null = null
+
+    for (const [testPath, tests] of byFile) {
+      const existing = await getExistingFileContent(token, testPath, branch)
+      const existingNames = existing ? parseExistingFunctionNames(existing.content) : new Set<string>()
+      const existingLineCount = existing ? existing.content.trimEnd().split('\n').length : 0
+
+      const { content: newContent, stubs } = buildSkeletonContent(
+        tests, existingNames, tests[0].sourceFile, existingLineCount,
+      )
+      if (stubs.length === 0) continue
+
+      const finalContent = existing
+        ? existing.content.trimEnd() + '\n\n\n' + newContent
+        : newContent
+
+      lastSha = await createOrUpdateSkeletonFile(token, testPath, finalContent, branch, existing?.sha)
+
+      for (const stub of stubs) {
+        const test = tests.find((t) => t.functionName === stub.functionName)!
+        allComments.push({ path: testPath, line: stub.passLine, body: buildSuggestionBody(test) })
+      }
+    }
+
+    if (lastSha && allComments.length > 0) {
+      await postSkeletonReview(token, lastSha, allComments)
+    }
   }
 
   if (result.needsTests) {

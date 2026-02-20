@@ -1,11 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { ChangedFile } from './github'
 
+export interface GeneratedTest {
+  sourceFile: string
+  functionName: string
+  description: string
+  suggestionBody: string
+}
+
 export interface AnalysisResult {
   needsTests: boolean
   summary: string
   missingTests: string[]
   coveredTests: string[]
+  generatedTests: GeneratedTest[]
 }
 
 const IGNORED_EXTENSIONS = [
@@ -39,6 +47,7 @@ export async function analyzeChanges(
       summary: 'No Python source file changes detected.',
       missingTests: [],
       coveredTests: [],
+      generatedTests: [],
     }
   }
 
@@ -70,14 +79,28 @@ Rules:
 - Focus on semantic intent, not line coverage
 - If changes are trivial (typos, comments, formatting) → no tests needed
 - If test file diffs are included and they cover the changed source code → no new tests needed
+- IMPORTANT: A function body of \`pass\` is a stub placeholder — treat as not yet implemented (needsTests: true)
 
 Respond ONLY with JSON:
 {
   "needsTests": boolean,
   "summary": "one sentence verdict",
   "missingTests": ["still needed or new suggestions..."],
-  "coveredTests": ["from previous suggestions, now covered by test diffs..."]
+  "coveredTests": ["from previous suggestions, now covered by test diffs..."],
+  "generatedTests": [
+    {
+      "sourceFile": "path matching the diff header",
+      "functionName": "test_snake_case",
+      "description": "same as corresponding missingTests entry",
+      "suggestionBody": "    assert ..."
+    }
+  ]
 }
+
+Rules for generatedTests:
+- One entry per missingTests item, same order
+- [] when needsTests is false
+- suggestionBody must be 4-space indented Python assertion(s)
 ${previousSuggestionsSection}
 Source file diffs (files that may need tests):
 ${sourceDiffsText}
@@ -88,7 +111,7 @@ ${testDiffsText}`
   const client = new Anthropic({ apiKey })
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
+    max_tokens: 2048,
     messages: [{ role: 'user', content: prompt }],
   })
 
@@ -103,5 +126,6 @@ ${testDiffsText}`
   }
 
   const result = JSON.parse(jsonMatch[0]) as AnalysisResult
+  result.generatedTests = result.generatedTests ?? []
   return result
 }
