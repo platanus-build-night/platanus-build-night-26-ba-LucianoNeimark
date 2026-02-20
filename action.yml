@@ -4,6 +4,9 @@ inputs:
   github-token:
     description: 'GitHub token for API access'
     required: true
+  anthropic-api-key:
+    description: 'Anthropic API key'
+    required: true
 outputs:
   changed_files:
     description: 'JSON array of changed file paths'
