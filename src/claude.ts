@@ -39,9 +39,20 @@ export async function analyzeChanges(
     }
   }
 
-  const diffsText = sourceFiles
+  const testFiles = files.filter(
+    (f) => f.status !== 'removed' && f.filename.endsWith('.py') && isTestFile(f.filename),
+  )
+
+  const sourceDiffsText = sourceFiles
     .map((f) => `### ${f.filename}\n\`\`\`diff\n${f.patch ?? '(no patch)'}\n\`\`\``)
     .join('\n\n')
+
+  const testDiffsText =
+    testFiles.length > 0
+      ? testFiles
+          .map((f) => `### ${f.filename}\n\`\`\`diff\n${f.patch ?? '(no patch)'}\n\`\`\``)
+          .join('\n\n')
+      : '(none)'
 
   const prompt = `You are a code reviewer. Given the following file diffs from a pull request,
 determine if new pytest tests are needed to cover the changes.
@@ -50,6 +61,7 @@ Rules:
 - Only consider .py source files (ignore test files, configs, docs)
 - Focus on semantic intent, not line coverage
 - If changes are trivial (typos, comments, formatting) → no tests needed
+- If test file diffs are included and they cover the changed source code → no new tests needed
 
 Respond ONLY with JSON:
 {
@@ -58,8 +70,11 @@ Respond ONLY with JSON:
   "missingTests": ["description of test 1", ...]
 }
 
-Diffs:
-${diffsText}`
+Source file diffs (files that may need tests):
+${sourceDiffsText}
+
+Test file diffs already in this PR (use these to judge coverage):
+${testDiffsText}`
 
   const client = new Anthropic({ apiKey })
   const message = await client.messages.create({
