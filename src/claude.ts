@@ -1,10 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { ChangedFile } from './github'
 
+export interface GeneratedTest {
+  sourceFile: string
+  functionName: string
+  description: string
+  suggestionBody: string
+}
+
 export interface AnalysisResult {
   needsTests: boolean
   summary: string
   missingTests: string[]
+  coveredTests: string[]
+  generatedTests: GeneratedTest[]
 }
 
 const IGNORED_EXTENSIONS = [
@@ -20,12 +29,14 @@ function isSourceFile(filename: string): boolean {
 
 function isTestFile(filename: string): boolean {
   const lower = filename.toLowerCase()
-  return lower.includes('/test_') || lower.includes('_test.') || lower.includes('/tests/')
+  const basename = lower.split('/').pop() ?? lower
+  return basename.startsWith('test_') || lower.includes('_test.') || lower.includes('/tests/')
 }
 
 export async function analyzeChanges(
   files: ChangedFile[],
   apiKey: string,
+  previousSuggestions: string[] = [],
 ): Promise<AnalysisResult> {
   const sourceFiles = files.filter(
     (f) => f.status !== 'removed' && isSourceFile(f.filename) && !isTestFile(f.filename),
@@ -36,6 +47,8 @@ export async function analyzeChanges(
       needsTests: false,
       summary: 'No Python source file changes detected.',
       missingTests: [],
+      coveredTests: [],
+      generatedTests: [],
     }
   }
 
@@ -54,6 +67,11 @@ export async function analyzeChanges(
           .join('\n\n')
       : '(none)'
 
+  const previousSuggestionsSection =
+    previousSuggestions.length > 0
+      ? `\nPrevious test suggestions — classify each as "covered" or "still missing":\n${previousSuggestions.map((s) => `- ${s}`).join('\n')}\n`
+      : ''
+
   const prompt = `You are a code reviewer. Given the following file diffs from a pull request,
 determine if new pytest tests are needed to cover the changes.
 
@@ -62,14 +80,29 @@ Rules:
 - Focus on semantic intent, not line coverage
 - If changes are trivial (typos, comments, formatting) → no tests needed
 - If test file diffs are included and they cover the changed source code → no new tests needed
+- IMPORTANT: A function body of \`pass\` is a stub placeholder — treat as not yet implemented (needsTests: true), but do NOT mention "pass", "stub", or "placeholder" in summary or missingTests descriptions
 
 Respond ONLY with JSON:
 {
   "needsTests": boolean,
   "summary": "one sentence verdict",
-  "missingTests": ["description of test 1", ...]
+  "missingTests": ["still needed or new suggestions..."],
+  "coveredTests": ["from previous suggestions, now covered by test diffs..."],
+  "generatedTests": [
+    {
+      "sourceFile": "path matching the diff header",
+      "functionName": "test_snake_case",
+      "description": "same as corresponding missingTests entry",
+      "suggestionBody": "    assert ..."
+    }
+  ]
 }
 
+Rules for generatedTests:
+- One entry per missingTests item, same order
+- [] when needsTests is false
+- suggestionBody must be 4-space indented Python assertion(s)
+${previousSuggestionsSection}
 Source file diffs (files that may need tests):
 ${sourceDiffsText}
 
@@ -79,7 +112,7 @@ ${testDiffsText}`
   const client = new Anthropic({ apiKey })
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
+    max_tokens: 2048,
     messages: [{ role: 'user', content: prompt }],
   })
 
@@ -94,5 +127,6 @@ ${testDiffsText}`
   }
 
   const result = JSON.parse(jsonMatch[0]) as AnalysisResult
+  result.generatedTests = result.generatedTests ?? []
   return result
 }
