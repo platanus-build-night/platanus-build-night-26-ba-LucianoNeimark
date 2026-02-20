@@ -31,7 +31,10 @@ def test_format_price_two_decimal_places():
 
 
 def test_apply_bulk_discount_at_threshold():
-    pass
+    from pricing import apply_bulk_discount
+    # default threshold=10, discount=0.1
+    result = apply_bulk_discount(100.0, quantity=10)
+    assert result == 90.0
 
 
 def test_apply_bulk_discount_above_threshold():
