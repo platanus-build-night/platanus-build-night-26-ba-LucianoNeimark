@@ -10,3 +10,12 @@ def format_price(price: float, currency: str = "USD") -> str:
     symbols = {"USD": "$", "EUR": "€", "GBP": "£"}
     symbol = symbols.get(currency, currency + " ")
     return f"{symbol}{price:.2f}"
+
+
+def apply_bulk_discount(price: float, quantity: int, threshold: int = 10, discount: float = 0.1) -> float:
+    """Return discounted unit price when quantity meets or exceeds threshold."""
+    if quantity < 0:
+        raise ValueError("Quantity cannot be negative")
+    if quantity >= threshold:
+        return price * (1 - discount)
+    return price
