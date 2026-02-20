@@ -74,7 +74,11 @@ def test_apply_coupon_valid_code():
 
 
 def test_apply_coupon_case_insensitive():
-    pass
+    from pricing import apply_coupon
+    result_upper = apply_coupon(100.0, 'SAVE20')
+    result_lower = apply_coupon(100.0, 'save20')
+    result_mixed = apply_coupon(100.0, 'Save20')
+    assert result_upper == result_lower == result_mixed == 80.0
 
 
 def test_apply_coupon_invalid_code_raises():
