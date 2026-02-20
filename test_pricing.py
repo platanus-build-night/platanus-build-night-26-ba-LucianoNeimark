@@ -65,7 +65,12 @@ def test_apply_bulk_discount_custom_threshold_and_discount():
 
 
 def test_apply_coupon_valid_code():
-    pass
+    from pricing import apply_coupon
+    result = apply_coupon(100.0, 'SAVE10')
+    assert result == 90.0, f'Expected 90.0, got {result}'
+
+    result = apply_coupon(200.0, 'SAVE20')
+    assert result == 160.0, f'Expected 160.0, got {result}'
 
 
 def test_apply_coupon_case_insensitive():
