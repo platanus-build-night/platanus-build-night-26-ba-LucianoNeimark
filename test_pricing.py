@@ -33,7 +33,7 @@ def test_format_price_two_decimal_places():
     assert apply_bulk_discount(100.0, 10) == 90.0
 def test_apply_bulk_discount_at_threshold():
     pass
-
+    assert apply_bulk_discount(100.0, 20) == 90.0
 def test_apply_bulk_discount_above_threshold():
     pass
 
