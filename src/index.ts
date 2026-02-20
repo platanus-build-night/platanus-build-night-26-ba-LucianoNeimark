@@ -5,7 +5,7 @@ import {
   findBotComment,
   updateComment,
   parsePreviousSuggestions,
-  parseDeclinedSuggestions,
+  getResolvedSuggestions,
   deriveTestFilePath,
   parseExistingFunctionNames,
   getExistingFileContent,
@@ -18,18 +18,17 @@ import {
 } from './github'
 import { analyzeChanges, AnalysisResult, GeneratedTest } from './claude'
 
-function buildCommentBody(result: AnalysisResult, declinedSuggestions: string[] = [], actionsUrl: string = ''): string {
+function buildCommentBody(result: AnalysisResult, resolvedSuggestions: string[] = []): string {
   const lines = ['## PR Test Checker', '', result.summary]
   const all = [...result.coveredTests, ...result.missingTests]
-  const hasAny = all.length > 0 || declinedSuggestions.length > 0
+  const hasAny = all.length > 0 || resolvedSuggestions.length > 0
   if (hasAny) {
     lines.push('', '**Suggested tests:**')
     for (const s of result.coveredTests) lines.push(`- ~~${s}~~ ✓`)
-    for (const s of result.missingTests) lines.push(`- [ ] ${s}`)
-    for (const s of declinedSuggestions) lines.push(`- [x] ~~${s}~~ *(dismissed — uncheck to restore)*`)
+    for (const s of result.missingTests) lines.push(`- ${s}`)
+    for (const s of resolvedSuggestions) lines.push(`- ~~${s}~~ *(dismissed — re-open thread to restore)*`)
     lines.push('')
-    lines.push('> **Tip:** Check a box to dismiss a suggestion — it won\'t be re-suggested on the next run. Uncheck to bring it back.')
-    if (actionsUrl) lines.push(`> After checking/unchecking boxes, trigger a new check via the [Actions tab](${actionsUrl}) → **Run workflow**.`)
+    lines.push('> **Tip:** Resolve an inline suggestion thread to dismiss it. Re-open the thread to bring it back.')
     lines.push('', `<!-- pr-test-checker: ${JSON.stringify({ suggestions: all })} -->`)
   }
   return lines.join('\n')
@@ -50,14 +49,11 @@ async function run(): Promise<void> {
   const octokit = github.getOctokit(token)
   const { owner, repo } = github.context.repo
   const pr = github.context.payload.pull_request!
-  const actionsUrl = `${github.context.serverUrl}/${owner}/${repo}/actions`
   const branch = (pr.head as { ref: string }).ref
 
   const existingComment = await findBotComment(token)
-  const previousSuggestions = existingComment
-    ? parsePreviousSuggestions(existingComment.body)
-    : []
-  const declinedSuggestions = existingComment ? parseDeclinedSuggestions(existingComment.body) : []
+  const previousSuggestions = existingComment ? parsePreviousSuggestions(existingComment.body) : []
+  const resolvedSuggestions = await getResolvedSuggestions(token)
 
   // Fetch full content of existing test files for Claude context
   const existingTestContents = new Map<string, string>()
@@ -78,10 +74,10 @@ async function run(): Promise<void> {
   }
 
   core.info('Analyzing changes with Claude...')
-  const result = await analyzeChanges(files, anthropicApiKey, previousSuggestions, existingTestContents, declinedSuggestions)
+  const result = await analyzeChanges(files, anthropicApiKey, previousSuggestions, existingTestContents, resolvedSuggestions)
   core.info(`Analysis: ${result.summary}`)
 
-  const commentBody = buildCommentBody(result, declinedSuggestions, actionsUrl)
+  const commentBody = buildCommentBody(result, resolvedSuggestions)
 
   if (existingComment) {
     await updateComment(token, existingComment.id, commentBody)
