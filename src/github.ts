@@ -28,3 +28,47 @@ export async function getChangedFiles(token: string): Promise<ChangedFile[]> {
     patch: f.patch,
   }))
 }
+
+export async function findBotComment(
+  token: string,
+): Promise<{ id: number; body: string } | null> {
+  const pr = github.context.payload.pull_request
+  if (!pr) return null
+
+  const octokit = github.getOctokit(token)
+  const { owner, repo } = github.context.repo
+
+  const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+    owner,
+    repo,
+    issue_number: pr.number,
+    per_page: 100,
+  })
+
+  const botComment = comments.find((c) => c.body?.includes('<!-- pr-test-checker:'))
+  if (!botComment || !botComment.body) return null
+
+  return { id: botComment.id, body: botComment.body }
+}
+
+export async function updateComment(
+  token: string,
+  commentId: number,
+  body: string,
+): Promise<void> {
+  const octokit = github.getOctokit(token)
+  const { owner, repo } = github.context.repo
+
+  await octokit.rest.issues.updateComment({
+    owner,
+    repo,
+    comment_id: commentId,
+    body,
+  })
+}
+
+export function parsePreviousSuggestions(body: string): string[] {
+  const match = body.match(/<!-- pr-test-checker: ({.*?}) -->/)
+  if (!match) return []
+  return JSON.parse(match[1]).suggestions ?? []
+}

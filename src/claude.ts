@@ -5,6 +5,7 @@ export interface AnalysisResult {
   needsTests: boolean
   summary: string
   missingTests: string[]
+  coveredTests: string[]
 }
 
 const IGNORED_EXTENSIONS = [
@@ -26,6 +27,7 @@ function isTestFile(filename: string): boolean {
 export async function analyzeChanges(
   files: ChangedFile[],
   apiKey: string,
+  previousSuggestions: string[] = [],
 ): Promise<AnalysisResult> {
   const sourceFiles = files.filter(
     (f) => f.status !== 'removed' && isSourceFile(f.filename) && !isTestFile(f.filename),
@@ -36,6 +38,7 @@ export async function analyzeChanges(
       needsTests: false,
       summary: 'No Python source file changes detected.',
       missingTests: [],
+      coveredTests: [],
     }
   }
 
@@ -54,6 +57,11 @@ export async function analyzeChanges(
           .join('\n\n')
       : '(none)'
 
+  const previousSuggestionsSection =
+    previousSuggestions.length > 0
+      ? `\nPrevious test suggestions — classify each as "covered" or "still missing":\n${previousSuggestions.map((s) => `- ${s}`).join('\n')}\n`
+      : ''
+
   const prompt = `You are a code reviewer. Given the following file diffs from a pull request,
 determine if new pytest tests are needed to cover the changes.
 
@@ -67,9 +75,10 @@ Respond ONLY with JSON:
 {
   "needsTests": boolean,
   "summary": "one sentence verdict",
-  "missingTests": ["description of test 1", ...]
+  "missingTests": ["still needed or new suggestions..."],
+  "coveredTests": ["from previous suggestions, now covered by test diffs..."]
 }
-
+${previousSuggestionsSection}
 Source file diffs (files that may need tests):
 ${sourceDiffsText}
 
