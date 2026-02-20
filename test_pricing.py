@@ -44,7 +44,9 @@ def test_apply_bulk_discount_above_threshold():
 
 
 def test_apply_bulk_discount_below_threshold():
-    pass
+    from pricing import apply_bulk_discount
+    result = apply_bulk_discount(100.0, quantity=9)
+    assert result == 100.0
 
 
 def test_apply_bulk_discount_negative_quantity_raises():
