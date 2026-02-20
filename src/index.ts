@@ -18,15 +18,18 @@ import {
 } from './github'
 import { analyzeChanges, AnalysisResult, GeneratedTest } from './claude'
 
-function buildCommentBody(result: AnalysisResult, declinedSuggestions: string[] = []): string {
+function buildCommentBody(result: AnalysisResult, declinedSuggestions: string[] = [], actionsUrl: string = ''): string {
   const lines = ['## PR Test Checker', '', result.summary]
   const all = [...result.coveredTests, ...result.missingTests]
   const hasAny = all.length > 0 || declinedSuggestions.length > 0
   if (hasAny) {
-    lines.push('', '**Suggested tests** (check a box to skip):')
+    lines.push('', '**Suggested tests:**')
     for (const s of result.coveredTests) lines.push(`- ~~${s}~~ ✓`)
     for (const s of result.missingTests) lines.push(`- [ ] ${s}`)
-    for (const s of declinedSuggestions) lines.push(`- [x] ${s}`)
+    for (const s of declinedSuggestions) lines.push(`- [x] ~~${s}~~ *(dismissed — uncheck to restore)*`)
+    lines.push('')
+    lines.push('> **Tip:** Check a box to dismiss a suggestion — it won\'t be re-suggested on the next run. Uncheck to bring it back.')
+    if (actionsUrl) lines.push(`> After checking/unchecking boxes, trigger a new check via the [Actions tab](${actionsUrl}) → **Run workflow**.`)
     lines.push('', `<!-- pr-test-checker: ${JSON.stringify({ suggestions: all })} -->`)
   }
   return lines.join('\n')
@@ -47,6 +50,7 @@ async function run(): Promise<void> {
   const octokit = github.getOctokit(token)
   const { owner, repo } = github.context.repo
   const pr = github.context.payload.pull_request!
+  const actionsUrl = `${github.context.serverUrl}/${owner}/${repo}/actions`
   const branch = (pr.head as { ref: string }).ref
 
   const existingComment = await findBotComment(token)
@@ -77,7 +81,7 @@ async function run(): Promise<void> {
   const result = await analyzeChanges(files, anthropicApiKey, previousSuggestions, existingTestContents, declinedSuggestions)
   core.info(`Analysis: ${result.summary}`)
 
-  const commentBody = buildCommentBody(result, declinedSuggestions)
+  const commentBody = buildCommentBody(result, declinedSuggestions, actionsUrl)
 
   if (existingComment) {
     await updateComment(token, existingComment.id, commentBody)
@@ -131,7 +135,7 @@ async function run(): Promise<void> {
     }
   }
 
-  if (result.needsTests) {
+  if (result.needsTests && result.missingTests.length > 0) {
     core.setFailed(`Missing tests: ${result.missingTests.join('; ')}`)
   }
 }
