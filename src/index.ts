@@ -133,10 +133,11 @@ async function run(): Promise<void> {
     })
   }
 
+  // Always clean up old suggestions so dismissed tests don't linger
+  await deletePreviousSuggestions(token)
+
   // Phase 3: commit skeleton test stubs and post suggestion review
   if (result.needsTests && result.generatedTests.length > 0) {
-    await deletePreviousSuggestions(token)
-
     const byFile = new Map<string, GeneratedTest[]>()
     for (const t of result.generatedTests) {
       const testPath = deriveTestFilePath(t.sourceFile)
