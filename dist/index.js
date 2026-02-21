@@ -34145,15 +34145,19 @@ ${testDiffsText}`;
 
 // src/index.ts
 function buildCommentBody(result, actionsUrl = "") {
-  const lines = ["## PR Test Checker", "", result.summary];
   const all = [...result.coveredTests, ...result.missingTests];
-  if (all.length > 0) {
+  const total = all.length;
+  const covered = result.coveredTests.length;
+  const pct = total > 0 ? Math.round(covered / total * 100) : 100;
+  const coverageBadge = pct === 100 ? `**Coverage: 100%** \u2705` : `**Coverage: ${pct}%** (${covered}/${total} features tested)`;
+  const lines = ["## PR Test Checker", "", coverageBadge, "", result.summary];
+  if (total > 0) {
     lines.push("", "**Suggested tests:**");
     for (const s2 of result.coveredTests) lines.push(`- ~~${s2}~~ \u2713`);
     for (const s2 of result.missingTests) lines.push(`- ${s2}`);
     lines.push("");
     lines.push("> \u2713 = covered \xB7 \u2610 = needs a test");
-    if (actionsUrl) {
+    if (actionsUrl && result.missingTests.length > 0) {
       lines.push(`> After adding tests, re-run: [Actions tab](${actionsUrl}) \u2192 **Run workflow**.`);
     }
     lines.push("", `<!-- pr-test-checker: ${JSON.stringify({ suggestions: all })} -->`);
