@@ -7,7 +7,8 @@ def test_division_by_zero_raises():
 
 
 def test_multiply_returns_correct_product():
-    pass
+    from calc import multiply
+    assert multiply(3, 4) == 12
 
 
 def test_sum_returns_correct_sum():
