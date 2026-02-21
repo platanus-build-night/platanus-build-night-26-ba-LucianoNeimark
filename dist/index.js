@@ -19794,10 +19794,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error;
-    function warning(message, properties = {}) {
+    function warning2(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning;
+    exports2.warning = warning2;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -34229,10 +34229,14 @@ async function run() {
       );
       if (stubs.length > 0) {
         const finalContent = existing ? existing.content.trimEnd() + "\n" + newContent : newContent;
-        lastSha = await createOrUpdateSkeletonFile(token, testPath, finalContent, branch, existing?.sha);
-        for (const stub of stubs) {
-          const test = tests.find((t2) => t2.functionName === stub.functionName);
-          allComments.push({ path: testPath, line: stub.passLine, body: buildSuggestionBody(test) });
+        try {
+          lastSha = await createOrUpdateSkeletonFile(token, testPath, finalContent, branch, existing?.sha);
+          for (const stub of stubs) {
+            const test = tests.find((t2) => t2.functionName === stub.functionName);
+            allComments.push({ path: testPath, line: stub.passLine, body: buildSuggestionBody(test) });
+          }
+        } catch (err) {
+          core.warning(`Could not commit skeleton test file (contents:write permission may be missing): ${err}`);
         }
       }
       if (existing) {

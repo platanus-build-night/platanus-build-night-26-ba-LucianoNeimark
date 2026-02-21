@@ -127,11 +127,14 @@ async function run(): Promise<void> {
           ? existing.content.trimEnd() + '\n' + newContent
           : newContent
 
-        lastSha = await createOrUpdateSkeletonFile(token, testPath, finalContent, branch, existing?.sha)
-
-        for (const stub of stubs) {
-          const test = tests.find((t) => t.functionName === stub.functionName)!
-          allComments.push({ path: testPath, line: stub.passLine, body: buildSuggestionBody(test) })
+        try {
+          lastSha = await createOrUpdateSkeletonFile(token, testPath, finalContent, branch, existing?.sha)
+          for (const stub of stubs) {
+            const test = tests.find((t) => t.functionName === stub.functionName)!
+            allComments.push({ path: testPath, line: stub.passLine, body: buildSuggestionBody(test) })
+          }
+        } catch (err) {
+          core.warning(`Could not commit skeleton test file (contents:write permission may be missing): ${err}`)
         }
       }
 
