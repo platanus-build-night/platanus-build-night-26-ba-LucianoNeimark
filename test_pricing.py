@@ -153,7 +153,12 @@ def test_apply_referral_discount_capped_at_25_percent():
 
 
 def test_apply_referral_discount_negative_uses_raises():
-    pass
+    import pytest
+    from pricing import apply_referral_discount
+    with pytest.raises(ValueError, match='Uses cannot be negative'):
+        apply_referral_discount(100.0, 'REF2024', -1)
+    with pytest.raises(ValueError):
+        apply_referral_discount(50.0, 'FRIEND10', -5)
 
 
 def test_apply_referral_discount_invalid_code_raises():
