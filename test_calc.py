@@ -3,7 +3,10 @@ from calc import *
 
 
 def test_division_by_zero_raises():
-    pass
+    import pytest
+    from calc import division
+    with pytest.raises(ZeroDivisionError):
+        division(10, 0)
 
 
 def test_multiply_returns_correct_product():
