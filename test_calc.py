@@ -11,4 +11,5 @@ def test_multiply_returns_correct_product():
 
 
 def test_sum_returns_correct_sum():
-    pass
+    from calc import sum_
+    assert sum_(3, 4) == 7
