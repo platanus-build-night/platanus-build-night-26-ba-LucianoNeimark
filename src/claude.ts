@@ -36,9 +36,7 @@ function isTestFile(filename: string): boolean {
 export async function analyzeChanges(
   files: ChangedFile[],
   apiKey: string,
-  previousSuggestions: string[] = [],
   existingTestContents: Map<string, string> = new Map(),
-  declinedSuggestions: string[] = [],
 ): Promise<AnalysisResult> {
   const sourceFiles = files.filter(
     (f) => f.status !== 'removed' && isSourceFile(f.filename) && !isTestFile(f.filename),
@@ -69,16 +67,6 @@ export async function analyzeChanges(
           .join('\n\n')
       : '(none)'
 
-  const declinedSection =
-    declinedSuggestions.length > 0
-      ? `\nDeclined test suggestions (user has chosen to skip — do NOT include in missingTests or generatedTests):\n${declinedSuggestions.map((s) => `- ${s}`).join('\n')}\n`
-      : ''
-
-  const previousSuggestionsSection =
-    previousSuggestions.length > 0
-      ? `\nPrevious test suggestions — classify each as "covered" or "still missing":\n${previousSuggestions.map((s) => `- ${s}`).join('\n')}\n`
-      : ''
-
   const existingTestsSection =
     existingTestContents.size > 0
       ? `\nExisting test file contents (complete — use these to know what is already tested):\n${
@@ -98,7 +86,6 @@ Rules:
 - If test file diffs are included and they cover the changed source code → no new tests needed
 - IMPORTANT: A function body of \`pass\` is a stub placeholder — treat as not yet implemented (needsTests: true), but do NOT mention "pass", "stub", or "placeholder" in summary or missingTests descriptions
 - Existing test file contents show ALL tests already written; do not suggest tests already implemented there
-- Do not suggest tests that appear in the declined list
 
 Respond ONLY with JSON:
 {
@@ -120,7 +107,7 @@ Rules for generatedTests:
 - One entry per missingTests item, same order
 - [] when needsTests is false
 - suggestionBody must be 4-space indented Python assertion(s)
-${declinedSection}${previousSuggestionsSection}${existingTestsSection}
+${existingTestsSection}
 Source file diffs (files that may need tests):
 ${sourceDiffsText}
 

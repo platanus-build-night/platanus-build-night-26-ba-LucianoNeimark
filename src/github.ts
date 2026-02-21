@@ -74,29 +74,6 @@ export async function updateComment(
   })
 }
 
-export function parsePreviousSuggestions(body: string): string[] {
-  const match = body.match(/<!-- pr-test-checker: ({.*?}) -->/)
-  if (!match) return []
-  return JSON.parse(match[1]).suggestions ?? []
-}
-
-export function parseDeclinedSuggestions(body: string): string[] {
-  const declined: string[] = []
-  const regex = /^- \[x\] (.+)$/gm
-  let match: RegExpExecArray | null
-  while ((match = regex.exec(body)) !== null) {
-    let text = match[1].trim()
-    // Strip markdown artifacts from previous rendering versions
-    text = text
-      .replace(/^~~/, '').replace(/~~\s*$/, '')
-      .replace(/\s*\*\(dismissed[^)]*\)\*/, '')
-      .replace(/\s*\*\(re-open[^)]*\)\*/, '')
-      .trim()
-    declined.push(text)
-  }
-  return declined
-}
-
 export function deriveTestFilePath(sourceFile: string): string {
   const parts = sourceFile.split('/')
   const basename = parts[parts.length - 1]
@@ -210,34 +187,6 @@ export async function createOrUpdateSkeletonFile(
   sha?: string,
 ): Promise<string> {
   return commitFile(token, path, content, `chore: add test stubs for ${path} [skip ci]`, branch, sha)
-}
-
-export async function readStateFile(
-  token: string,
-  branch: string,
-): Promise<{ dismissed: string[]; sha?: string }> {
-  const existing = await getExistingFileContent(token, '.tests/state.json', branch)
-  if (!existing) return { dismissed: [] }
-  try {
-    const parsed = JSON.parse(existing.content)
-    return { dismissed: Array.isArray(parsed.dismissed) ? parsed.dismissed : [], sha: existing.sha }
-  } catch {
-    return { dismissed: [], sha: existing.sha }
-  }
-}
-
-export async function writeStateFile(
-  token: string,
-  branch: string,
-  dismissed: string[],
-  sha?: string,
-): Promise<void> {
-  const content = JSON.stringify({ dismissed }, null, 2) + '\n'
-  try {
-    await commitFile(token, '.tests/state.json', content, 'chore: update test checker state [skip ci]', branch, sha)
-  } catch (err) {
-    console.error('Failed to write state file (non-fatal):', err)
-  }
 }
 
 export function buildSuggestionBody(test: GeneratedTest): string {
