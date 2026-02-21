@@ -117,7 +117,10 @@ def test_calculate_final_price_invalid_coupon_raises():
 
 
 def test_apply_loyalty_discount_standard_points():
-    pass
+    from pricing import apply_loyalty_discount
+    assert apply_loyalty_discount(100.0, 100) == 99.0   # 1% off
+    assert apply_loyalty_discount(100.0, 500) == 95.0   # 5% off
+    assert apply_loyalty_discount(200.0, 250) == 194.0  # 2% off (250//100 = 2)
 
 
 def test_apply_loyalty_discount_capped_at_15_percent():
