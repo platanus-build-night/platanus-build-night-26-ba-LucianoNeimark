@@ -11,4 +11,4 @@ def test_division_raises_on_zero_divisor():
 
 
 def test_division_returns_correct_quotient():
-    pass
+    assert division(10, 2) == 5.0
