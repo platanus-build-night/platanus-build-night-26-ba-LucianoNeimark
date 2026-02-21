@@ -11,7 +11,7 @@ def test_sum_negative_numbers():
 
 
 def test_sum_zeros():
-    pass
+    assert sum(0, 0) == 0
 
 
 def test_sum_floats():
