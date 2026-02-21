@@ -8,6 +8,7 @@ import {
   parseDeclinedSuggestions,
   deriveTestFilePath,
   parseExistingFunctionNames,
+  parsePassLineNumbers,
   getExistingFileContent,
   buildSkeletonContent,
   createOrUpdateSkeletonFile,
@@ -85,15 +86,32 @@ async function run(): Promise<void> {
   const result = await analyzeChanges(files, anthropicApiKey, previousSuggestions, existingTestContents, declinedSuggestions)
   core.info(`Analysis: ${result.summary}`)
 
-  // Normalize a suggestion string for comparison (strip markdown, lowercase)
-  const normalize = (s: string) =>
-    s.replace(/~~/g, '').replace(/\*\([^)]*\)\*/g, '').trim().toLowerCase()
+  // Strip everything except letters and digits for fuzzy matching
+  const normalize = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase()
+
+  // Build a lookup: normalizedKey → canonical stored text
+  const canonicalMap = new Map<string, string>()
+  for (const s of [...previousSuggestions, ...declinedSuggestions]) {
+    canonicalMap.set(normalize(s), s)
+  }
+
+  // Replace Claude's output with canonical text wherever we have a prior match
+  result.missingTests = result.missingTests.map(
+    (s) => canonicalMap.get(normalize(s)) ?? s
+  )
+  result.generatedTests = result.generatedTests.map((t) => ({
+    ...t,
+    description: canonicalMap.get(normalize(t.description)) ?? t.description,
+  }))
 
   const normalizedDeclined = new Set(declinedSuggestions.map(normalize))
 
-  // Remove any missingTests that the user has already dismissed
+  // Remove any missingTests / generatedTests that the user has already dismissed
   result.missingTests = result.missingTests.filter(
     (s) => !normalizedDeclined.has(normalize(s))
+  )
+  result.generatedTests = result.generatedTests.filter(
+    (t) => !normalizedDeclined.has(normalize(t.description))
   )
 
   // If filtering emptied missingTests, there's nothing left to fail on
@@ -137,22 +155,39 @@ async function run(): Promise<void> {
       const { content: newContent, stubs } = buildSkeletonContent(
         tests, existingNames, tests[0].sourceFile, existingLineCount,
       )
-      if (stubs.length === 0) continue
 
-      const finalContent = existing
-        ? existing.content.trimEnd() + '\n' + newContent
-        : newContent
+      if (stubs.length > 0) {
+        const finalContent = existing
+          ? existing.content.trimEnd() + '\n' + newContent
+          : newContent
 
-      lastSha = await createOrUpdateSkeletonFile(token, testPath, finalContent, branch, existing?.sha)
+        lastSha = await createOrUpdateSkeletonFile(token, testPath, finalContent, branch, existing?.sha)
 
-      for (const stub of stubs) {
-        const test = tests.find((t) => t.functionName === stub.functionName)!
-        allComments.push({ path: testPath, line: stub.passLine, body: buildSuggestionBody(test) })
+        for (const stub of stubs) {
+          const test = tests.find((t) => t.functionName === stub.functionName)!
+          allComments.push({ path: testPath, line: stub.passLine, body: buildSuggestionBody(test) })
+        }
+      }
+
+      // For stubs already in the file (pass-body only), post suggestions without committing
+      if (existing) {
+        const passLines = parsePassLineNumbers(existing.content)
+        for (const test of tests) {
+          if (existingNames.has(test.functionName) && passLines.has(test.functionName)) {
+            allComments.push({
+              path: testPath,
+              line: passLines.get(test.functionName)!,
+              body: buildSuggestionBody(test),
+            })
+          }
+        }
       }
     }
 
-    if (lastSha && allComments.length > 0) {
-      await postSkeletonReview(token, lastSha, allComments)
+    // Use new commit SHA if we made one, otherwise use PR HEAD
+    const commitSha = lastSha ?? (pr.head as { sha: string }).sha
+    if (allComments.length > 0) {
+      await postSkeletonReview(token, commitSha, allComments)
     }
   }
 

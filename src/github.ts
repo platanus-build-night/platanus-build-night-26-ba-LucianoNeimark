@@ -104,6 +104,32 @@ export function deriveTestFilePath(sourceFile: string): string {
   return parts.join('/')
 }
 
+export function parsePassLineNumbers(content: string): Map<string, number> {
+  const result = new Map<string, number>()
+  const lines = content.split('\n')
+  let currentFunc: string | null = null
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const fnMatch = line.match(/^def (test_\w+)\s*\(/)
+    if (fnMatch) {
+      currentFunc = fnMatch[1]
+      continue
+    }
+    if (currentFunc !== null) {
+      const trimmed = line.trim()
+      if (trimmed === 'pass') {
+        result.set(currentFunc, i + 1) // 1-indexed line number
+        currentFunc = null
+      } else if (trimmed !== '' && !trimmed.startsWith('#')) {
+        // Real implementation found — not a stub
+        currentFunc = null
+      }
+    }
+  }
+  return result
+}
+
 export function parseExistingFunctionNames(content: string): Set<string> {
   const names = new Set<string>()
   const regex = /^def (test_\w+)\s*\(/gm
