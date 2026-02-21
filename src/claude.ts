@@ -92,6 +92,7 @@ Rules:
 - If test file diffs are included and they cover the changed source code → no new tests needed
 - IMPORTANT: A function body of \`pass\` is a stub placeholder — treat as not yet implemented (needsTests: true), but do NOT mention "pass", "stub", or "placeholder" in summary or missingTests descriptions
 - Existing test file contents show ALL tests already written; do not suggest tests already implemented there
+- Suggest at most 1-2 tests per changed function; prefer the single most representative case over exhaustive coverage
 
 Respond ONLY with JSON:
 {
