@@ -3,7 +3,7 @@ from calc import *
 
 
 def test_multiply_returns_correct_product():
-    pass
+    assert multiply(3, 4) == 12
 
 
 def test_division_raises_on_zero_divisor():
