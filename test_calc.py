@@ -3,7 +3,9 @@ from calc import *
 
 
 def test_multiply_returns_correct_product():
-    pass
+    assert multiply(3, 4) == 12
+    assert multiply(-2, 5) == -10
+    assert multiply(0, 99) == 0
 
 
 def test_division_result_and_zero_divisor():
