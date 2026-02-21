@@ -114,3 +114,19 @@ def test_calculate_final_price_no_coupon_zero_tax_returns_original():
 
 def test_calculate_final_price_invalid_coupon_raises():
     pass
+
+
+def test_apply_loyalty_discount_standard_points():
+    pass
+
+
+def test_apply_loyalty_discount_capped_at_15_percent():
+    pass
+
+
+def test_apply_loyalty_discount_zero_points():
+    pass
+
+
+def test_apply_loyalty_discount_negative_points_raises():
+    pass
