@@ -30,6 +30,14 @@ def apply_bulk_discount(price: float, quantity: int, threshold: int = 10, discou
     return price
 
 
+def apply_loyalty_discount(price: float, points: int) -> float:
+    """Apply a loyalty points discount. Every 100 points = 1% off, max 15%."""
+    if points < 0:
+        raise ValueError("Points cannot be negative")
+    discount = min(points // 100 * 0.01, 0.15)
+    return price * (1 - discount)
+
+
 def calculate_final_price(price: float, coupon_code: str | None = None, tax_rate: float = 0.0) -> float:
     """Apply optional coupon then tax and return the final price."""
     if coupon_code:

@@ -74,29 +74,6 @@ export async function updateComment(
   })
 }
 
-export function parsePreviousSuggestions(body: string): string[] {
-  const match = body.match(/<!-- pr-test-checker: ({.*?}) -->/)
-  if (!match) return []
-  return JSON.parse(match[1]).suggestions ?? []
-}
-
-export function parseDeclinedSuggestions(body: string): string[] {
-  const declined: string[] = []
-  const regex = /^- \[x\] (.+)$/gm
-  let match: RegExpExecArray | null
-  while ((match = regex.exec(body)) !== null) {
-    let text = match[1].trim()
-    // Strip markdown artifacts from previous rendering versions
-    text = text
-      .replace(/^~~/, '').replace(/~~\s*$/, '')
-      .replace(/\s*\*\(dismissed[^)]*\)\*/, '')
-      .replace(/\s*\*\(re-open[^)]*\)\*/, '')
-      .trim()
-    declined.push(text)
-  }
-  return declined
-}
-
 export function deriveTestFilePath(sourceFile: string): string {
   const parts = sourceFile.split('/')
   const basename = parts[parts.length - 1]
@@ -185,6 +162,23 @@ export function buildSkeletonContent(
   return { content: lines.join('\n'), stubs }
 }
 
+async function commitFile(
+  token: string,
+  path: string,
+  content: string,
+  message: string,
+  branch: string,
+  sha?: string,
+): Promise<string> {
+  const octokit = github.getOctokit(token)
+  const { owner, repo } = github.context.repo
+  const encodedContent = Buffer.from(content).toString('base64')
+  const response = await octokit.rest.repos.createOrUpdateFileContents({
+    owner, repo, path, message, content: encodedContent, branch, sha,
+  })
+  return response.data.commit.sha
+}
+
 export async function createOrUpdateSkeletonFile(
   token: string,
   path: string,
@@ -192,22 +186,7 @@ export async function createOrUpdateSkeletonFile(
   branch: string,
   sha?: string,
 ): Promise<string> {
-  const octokit = github.getOctokit(token)
-  const { owner, repo } = github.context.repo
-
-  const encodedContent = Buffer.from(content).toString('base64')
-
-  const response = await octokit.rest.repos.createOrUpdateFileContents({
-    owner,
-    repo,
-    path,
-    message: `chore: add test stubs for ${path} [skip ci]`,
-    content: encodedContent,
-    branch,
-    sha,
-  })
-
-  return response.data.commit.sha
+  return commitFile(token, path, content, `chore: add test stubs for ${path} [skip ci]`, branch, sha)
 }
 
 export function buildSuggestionBody(test: GeneratedTest): string {
@@ -241,7 +220,7 @@ export async function deletePreviousSuggestions(token: string): Promise<void> {
   }
 }
 
-export async function postSkeletonReview(
+export async function postSuggestionComments(
   token: string,
   commitSha: string,
   comments: ReviewComment[],
@@ -250,17 +229,20 @@ export async function postSkeletonReview(
   const { owner, repo } = github.context.repo
   const pr = github.context.payload.pull_request!
 
-  try {
-    await octokit.rest.pulls.createReview({
-      owner,
-      repo,
-      pull_number: pr.number,
-      commit_id: commitSha,
-      event: 'COMMENT',
-      body: 'Click "Commit suggestion" per test to apply.',
-      comments: comments.map((c) => ({ path: c.path, line: c.line, side: 'RIGHT' as const, body: c.body })),
-    })
-  } catch (err) {
-    console.error('Failed to post skeleton review:', err)
+  for (const comment of comments) {
+    try {
+      await octokit.rest.pulls.createReviewComment({
+        owner,
+        repo,
+        pull_number: pr.number,
+        commit_id: commitSha,
+        body: comment.body,
+        path: comment.path,
+        line: comment.line,
+        side: 'RIGHT',
+      })
+    } catch (err) {
+      console.error('Failed to post suggestion comment:', err)
+    }
   }
 }

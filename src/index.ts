@@ -4,8 +4,6 @@ import {
   getChangedFiles,
   findBotComment,
   updateComment,
-  parsePreviousSuggestions,
-  parseDeclinedSuggestions,
   deriveTestFilePath,
   parseExistingFunctionNames,
   parsePassLineNumbers,
@@ -13,30 +11,24 @@ import {
   buildSkeletonContent,
   createOrUpdateSkeletonFile,
   buildSuggestionBody,
-  postSkeletonReview,
+  postSuggestionComments,
   deletePreviousSuggestions,
   ReviewComment,
 } from './github'
 import { analyzeChanges, AnalysisResult, GeneratedTest } from './claude'
 
-function buildCommentBody(result: AnalysisResult, declinedSuggestions: string[] = [], actionsUrl: string = ''): string {
+function buildCommentBody(result: AnalysisResult, actionsUrl: string = ''): string {
   const lines = ['## PR Test Checker', '', result.summary]
   const all = [...result.coveredTests, ...result.missingTests]
-  // Don't re-show dismissed items that are now covered
-  const activeDismissed = declinedSuggestions.filter((s) => !result.coveredTests.includes(s))
-  const hasAny = all.length > 0 || activeDismissed.length > 0
-  if (hasAny) {
+  if (all.length > 0) {
     lines.push('', '**Suggested tests:**')
     for (const s of result.coveredTests) lines.push(`- ~~${s}~~ ✓`)
-    for (const s of result.missingTests) lines.push(`- [ ] ${s}`)
-    for (const s of activeDismissed) lines.push(`- [x] ${s}`)
+    for (const s of result.missingTests) lines.push(`- ${s}`)
     lines.push('')
-    const tip = '> ✓ = covered · ☐ = needs a test · ☑ = dismissed by you (uncheck to restore)'
-    lines.push(tip)
+    lines.push('> ✓ = covered · ☐ = needs a test')
     if (actionsUrl) {
-      lines.push(`> After checking or unchecking boxes, re-run the check: [Actions tab](${actionsUrl}) → **Run workflow**.`)
+      lines.push(`> After adding tests, re-run: [Actions tab](${actionsUrl}) → **Run workflow**.`)
     }
-    lines.push('', `<!-- pr-test-checker: ${JSON.stringify({ suggestions: all })} -->`)
   }
   return lines.join('\n')
 }
@@ -61,8 +53,6 @@ async function run(): Promise<void> {
   const actionsUrl = `${github.context.serverUrl}/${owner}/${repo}/actions`
 
   const existingComment = await findBotComment(token)
-  const previousSuggestions = existingComment ? parsePreviousSuggestions(existingComment.body) : []
-  const declinedSuggestions = existingComment ? parseDeclinedSuggestions(existingComment.body) : []
 
   // Fetch full content of existing test files for Claude context
   const existingTestContents = new Map<string, string>()
@@ -83,36 +73,8 @@ async function run(): Promise<void> {
   }
 
   core.info('Analyzing changes with Claude...')
-  const result = await analyzeChanges(files, anthropicApiKey, previousSuggestions, existingTestContents, declinedSuggestions)
+  const result = await analyzeChanges(files, anthropicApiKey, existingTestContents)
   core.info(`Analysis: ${result.summary}`)
-
-  // Strip everything except letters and digits for fuzzy matching
-  const normalize = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase()
-
-  // Build a lookup: normalizedKey → canonical stored text
-  const canonicalMap = new Map<string, string>()
-  for (const s of [...previousSuggestions, ...declinedSuggestions]) {
-    canonicalMap.set(normalize(s), s)
-  }
-
-  // Replace Claude's output with canonical text wherever we have a prior match
-  result.missingTests = result.missingTests.map(
-    (s) => canonicalMap.get(normalize(s)) ?? s
-  )
-  result.generatedTests = result.generatedTests.map((t) => ({
-    ...t,
-    description: canonicalMap.get(normalize(t.description)) ?? t.description,
-  }))
-
-  const normalizedDeclined = new Set(declinedSuggestions.map(normalize))
-
-  // Remove any missingTests / generatedTests that the user has already dismissed
-  result.missingTests = result.missingTests.filter(
-    (s) => !normalizedDeclined.has(normalize(s))
-  )
-  result.generatedTests = result.generatedTests.filter(
-    (t) => !normalizedDeclined.has(normalize(t.description))
-  )
 
   // missingTests is the single source of truth; derive everything from it
   result.needsTests = result.missingTests.length > 0
@@ -120,7 +82,7 @@ async function run(): Promise<void> {
     result.generatedTests = []
   }
 
-  const commentBody = buildCommentBody(result, declinedSuggestions, actionsUrl)
+  const commentBody = buildCommentBody(result, actionsUrl)
 
   if (existingComment) {
     await updateComment(token, existingComment.id, commentBody)
@@ -133,7 +95,7 @@ async function run(): Promise<void> {
     })
   }
 
-  // Always clean up old suggestions so dismissed tests don't linger
+  // Always clean up old suggestions so stale ones don't linger
   await deletePreviousSuggestions(token)
 
   // Phase 3: commit skeleton test stubs and post suggestion review
@@ -188,7 +150,7 @@ async function run(): Promise<void> {
     // Use new commit SHA if we made one, otherwise use PR HEAD
     const commitSha = lastSha ?? (pr.head as { sha: string }).sha
     if (allComments.length > 0) {
-      await postSkeletonReview(token, commitSha, allComments)
+      await postSuggestionComments(token, commitSha, allComments)
     }
   }
 
