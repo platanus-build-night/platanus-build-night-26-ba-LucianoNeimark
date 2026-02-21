@@ -1,5 +1,3 @@
 {
-  "dismissed": [
-    "Test that apply_loyalty_discount caps the discount at 15% regardless of how many points are provided"
-  ]
+  "dismissed": []
 }
