@@ -133,3 +133,27 @@ def test_apply_loyalty_discount_zero_points():
 
 def test_apply_loyalty_discount_negative_points_raises():
     pass
+
+
+def test_apply_referral_discount_standard_uses():
+    pass
+
+
+def test_apply_referral_discount_capped_at_25_percent():
+    pass
+
+
+def test_apply_referral_discount_negative_uses_raises():
+    pass
+
+
+def test_apply_referral_discount_invalid_code_raises():
+    pass
+
+
+def test_apply_referral_discount_zero_uses_returns_original():
+    pass
+
+
+def test_apply_referral_discount_all_valid_codes_and_case_insensitive():
+    pass
