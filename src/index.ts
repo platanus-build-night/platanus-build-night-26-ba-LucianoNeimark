@@ -85,6 +85,23 @@ async function run(): Promise<void> {
   const result = await analyzeChanges(files, anthropicApiKey, previousSuggestions, existingTestContents, declinedSuggestions)
   core.info(`Analysis: ${result.summary}`)
 
+  // Normalize a suggestion string for comparison (strip markdown, lowercase)
+  const normalize = (s: string) =>
+    s.replace(/~~/g, '').replace(/\*\([^)]*\)\*/g, '').trim().toLowerCase()
+
+  const normalizedDeclined = new Set(declinedSuggestions.map(normalize))
+
+  // Remove any missingTests that the user has already dismissed
+  result.missingTests = result.missingTests.filter(
+    (s) => !normalizedDeclined.has(normalize(s))
+  )
+
+  // If filtering emptied missingTests, there's nothing left to fail on
+  if (result.missingTests.length === 0) {
+    result.needsTests = false
+    result.generatedTests = []
+  }
+
   const commentBody = buildCommentBody(result, declinedSuggestions, actionsUrl)
 
   if (existingComment) {

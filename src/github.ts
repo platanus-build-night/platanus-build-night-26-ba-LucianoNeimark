@@ -85,7 +85,14 @@ export function parseDeclinedSuggestions(body: string): string[] {
   const regex = /^- \[x\] (.+)$/gm
   let match: RegExpExecArray | null
   while ((match = regex.exec(body)) !== null) {
-    declined.push(match[1].trim())
+    let text = match[1].trim()
+    // Strip markdown artifacts from previous rendering versions
+    text = text
+      .replace(/^~~/, '').replace(/~~\s*$/, '')
+      .replace(/\s*\*\(dismissed[^)]*\)\*/, '')
+      .replace(/\s*\*\(re-open[^)]*\)\*/, '')
+      .trim()
+    declined.push(text)
   }
   return declined
 }
