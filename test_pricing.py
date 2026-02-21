@@ -156,4 +156,12 @@ def test_apply_referral_discount_zero_uses_returns_original():
 
 
 def test_apply_referral_discount_all_valid_codes_and_case_insensitive():
-    pass
+    from pricing import apply_referral_discount
+    # All valid codes work
+    assert apply_referral_discount(100.0, 'REF2024', 1) == 95.0
+    assert apply_referral_discount(100.0, 'REF2025', 1) == 95.0
+    assert apply_referral_discount(100.0, 'FRIEND10', 1) == 95.0
+    # Case-insensitive lookup
+    assert apply_referral_discount(100.0, 'ref2024', 1) == 95.0
+    assert apply_referral_discount(100.0, 'Ref2025', 1) == 95.0
+    assert apply_referral_discount(100.0, 'friend10', 1) == 95.0
