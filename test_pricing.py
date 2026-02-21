@@ -162,7 +162,14 @@ def test_apply_referral_discount_negative_uses_raises():
 
 
 def test_apply_referral_discount_invalid_code_raises():
-    pass
+    import pytest
+    from pricing import apply_referral_discount
+    with pytest.raises(ValueError, match='Invalid referral code: BOGUS'):
+        apply_referral_discount(100.0, 'BOGUS', 1)
+    with pytest.raises(ValueError):
+        apply_referral_discount(100.0, '', 1)
+    with pytest.raises(ValueError):
+        apply_referral_discount(100.0, 'UNKNOWN', 3)
 
 
 def test_apply_referral_discount_zero_uses_returns_original():
