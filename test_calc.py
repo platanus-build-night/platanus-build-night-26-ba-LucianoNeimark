@@ -10,7 +10,10 @@ def test_multiply():
 
 
 def test_divide():
-    pass
+    assert divide(10, 2) == 5.0
+    assert divide(-9, 3) == -3.0
+    assert divide(7, 2) == 3.5
+    assert divide(0, 5) == 0.0
 
 
 def test_divide_by_zero():
