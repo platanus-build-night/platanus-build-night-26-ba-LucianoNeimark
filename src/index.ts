@@ -13,8 +13,10 @@ import {
   buildSkeletonContent,
   createOrUpdateSkeletonFile,
   buildSuggestionBody,
-  postSkeletonReview,
+  postSuggestionComments,
   deletePreviousSuggestions,
+  readStateFile,
+  writeStateFile,
   ReviewComment,
 } from './github'
 import { analyzeChanges, AnalysisResult, GeneratedTest } from './claude'
@@ -62,7 +64,11 @@ async function run(): Promise<void> {
 
   const existingComment = await findBotComment(token)
   const previousSuggestions = existingComment ? parsePreviousSuggestions(existingComment.body) : []
-  const declinedSuggestions = existingComment ? parseDeclinedSuggestions(existingComment.body) : []
+  // State file is the fallback when there's no PR comment yet
+  const stateFile = await readStateFile(token, branch)
+  const declinedSuggestions = existingComment
+    ? parseDeclinedSuggestions(existingComment.body)
+    : stateFile.dismissed
 
   // Fetch full content of existing test files for Claude context
   const existingTestContents = new Map<string, string>()
@@ -133,6 +139,9 @@ async function run(): Promise<void> {
     })
   }
 
+  // Persist dismissed list to state file — source of truth across runs
+  await writeStateFile(token, branch, declinedSuggestions, stateFile.sha)
+
   // Always clean up old suggestions so dismissed tests don't linger
   await deletePreviousSuggestions(token)
 
@@ -188,7 +197,7 @@ async function run(): Promise<void> {
     // Use new commit SHA if we made one, otherwise use PR HEAD
     const commitSha = lastSha ?? (pr.head as { sha: string }).sha
     if (allComments.length > 0) {
-      await postSkeletonReview(token, commitSha, allComments)
+      await postSuggestionComments(token, commitSha, allComments)
     }
   }
 

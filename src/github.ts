@@ -185,6 +185,23 @@ export function buildSkeletonContent(
   return { content: lines.join('\n'), stubs }
 }
 
+async function commitFile(
+  token: string,
+  path: string,
+  content: string,
+  message: string,
+  branch: string,
+  sha?: string,
+): Promise<string> {
+  const octokit = github.getOctokit(token)
+  const { owner, repo } = github.context.repo
+  const encodedContent = Buffer.from(content).toString('base64')
+  const response = await octokit.rest.repos.createOrUpdateFileContents({
+    owner, repo, path, message, content: encodedContent, branch, sha,
+  })
+  return response.data.commit.sha
+}
+
 export async function createOrUpdateSkeletonFile(
   token: string,
   path: string,
@@ -192,22 +209,35 @@ export async function createOrUpdateSkeletonFile(
   branch: string,
   sha?: string,
 ): Promise<string> {
-  const octokit = github.getOctokit(token)
-  const { owner, repo } = github.context.repo
+  return commitFile(token, path, content, `chore: add test stubs for ${path} [skip ci]`, branch, sha)
+}
 
-  const encodedContent = Buffer.from(content).toString('base64')
+export async function readStateFile(
+  token: string,
+  branch: string,
+): Promise<{ dismissed: string[]; sha?: string }> {
+  const existing = await getExistingFileContent(token, '.tests/state.json', branch)
+  if (!existing) return { dismissed: [] }
+  try {
+    const parsed = JSON.parse(existing.content)
+    return { dismissed: Array.isArray(parsed.dismissed) ? parsed.dismissed : [], sha: existing.sha }
+  } catch {
+    return { dismissed: [], sha: existing.sha }
+  }
+}
 
-  const response = await octokit.rest.repos.createOrUpdateFileContents({
-    owner,
-    repo,
-    path,
-    message: `chore: add test stubs for ${path} [skip ci]`,
-    content: encodedContent,
-    branch,
-    sha,
-  })
-
-  return response.data.commit.sha
+export async function writeStateFile(
+  token: string,
+  branch: string,
+  dismissed: string[],
+  sha?: string,
+): Promise<void> {
+  const content = JSON.stringify({ dismissed }, null, 2) + '\n'
+  try {
+    await commitFile(token, '.tests/state.json', content, 'chore: update test checker state [skip ci]', branch, sha)
+  } catch (err) {
+    console.error('Failed to write state file (non-fatal):', err)
+  }
 }
 
 export function buildSuggestionBody(test: GeneratedTest): string {
@@ -241,7 +271,7 @@ export async function deletePreviousSuggestions(token: string): Promise<void> {
   }
 }
 
-export async function postSkeletonReview(
+export async function postSuggestionComments(
   token: string,
   commitSha: string,
   comments: ReviewComment[],
@@ -250,17 +280,20 @@ export async function postSkeletonReview(
   const { owner, repo } = github.context.repo
   const pr = github.context.payload.pull_request!
 
-  try {
-    await octokit.rest.pulls.createReview({
-      owner,
-      repo,
-      pull_number: pr.number,
-      commit_id: commitSha,
-      event: 'COMMENT',
-      body: 'Click "Commit suggestion" per test to apply.',
-      comments: comments.map((c) => ({ path: c.path, line: c.line, side: 'RIGHT' as const, body: c.body })),
-    })
-  } catch (err) {
-    console.error('Failed to post skeleton review:', err)
+  for (const comment of comments) {
+    try {
+      await octokit.rest.pulls.createReviewComment({
+        owner,
+        repo,
+        pull_number: pr.number,
+        commit_id: commitSha,
+        body: comment.body,
+        path: comment.path,
+        line: comment.line,
+        side: 'RIGHT',
+      })
+    } catch (err) {
+      console.error('Failed to post suggestion comment:', err)
+    }
   }
 }
