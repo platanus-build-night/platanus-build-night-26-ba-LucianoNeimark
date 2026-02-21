@@ -136,7 +136,10 @@ def test_apply_loyalty_discount_negative_points_raises():
 
 
 def test_apply_referral_discount_standard_uses():
-    pass
+    from pricing import apply_referral_discount
+    assert apply_referral_discount(100.0, 'REF2024', 1) == 95.0   # 1 use → 5% off
+    assert apply_referral_discount(100.0, 'REF2025', 2) == 90.0   # 2 uses → 10% off
+    assert apply_referral_discount(200.0, 'FRIEND10', 3) == 170.0 # 3 uses → 15% off
 
 
 def test_apply_referral_discount_capped_at_25_percent():
