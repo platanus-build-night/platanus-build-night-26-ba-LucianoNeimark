@@ -4,6 +4,7 @@ import {
   getChangedFiles,
   findBotComment,
   updateComment,
+  parsePreviousSuggestions,
   deriveTestFilePath,
   parseExistingFunctionNames,
   parsePassLineNumbers,
@@ -29,6 +30,7 @@ function buildCommentBody(result: AnalysisResult, actionsUrl: string = ''): stri
     if (actionsUrl) {
       lines.push(`> After adding tests, re-run: [Actions tab](${actionsUrl}) → **Run workflow**.`)
     }
+    lines.push('', `<!-- pr-test-checker: ${JSON.stringify({ suggestions: all })} -->`)
   }
   return lines.join('\n')
 }
@@ -53,6 +55,7 @@ async function run(): Promise<void> {
   const actionsUrl = `${github.context.serverUrl}/${owner}/${repo}/actions`
 
   const existingComment = await findBotComment(token)
+  const previousSuggestions = existingComment ? parsePreviousSuggestions(existingComment.body) : []
 
   // Fetch full content of existing test files for Claude context
   const existingTestContents = new Map<string, string>()
@@ -73,7 +76,7 @@ async function run(): Promise<void> {
   }
 
   core.info('Analyzing changes with Claude...')
-  const result = await analyzeChanges(files, anthropicApiKey, existingTestContents)
+  const result = await analyzeChanges(files, anthropicApiKey, existingTestContents, previousSuggestions)
   core.info(`Analysis: ${result.summary}`)
 
   // missingTests is the single source of truth; derive everything from it

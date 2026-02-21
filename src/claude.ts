@@ -37,6 +37,7 @@ export async function analyzeChanges(
   files: ChangedFile[],
   apiKey: string,
   existingTestContents: Map<string, string> = new Map(),
+  previousSuggestions: string[] = [],
 ): Promise<AnalysisResult> {
   const sourceFiles = files.filter(
     (f) => f.status !== 'removed' && isSourceFile(f.filename) && !isTestFile(f.filename),
@@ -66,6 +67,11 @@ export async function analyzeChanges(
           .map((f) => `### ${f.filename}\n\`\`\`diff\n${f.patch ?? '(no patch)'}\n\`\`\``)
           .join('\n\n')
       : '(none)'
+
+  const previousSuggestionsSection =
+    previousSuggestions.length > 0
+      ? `\nThe following tests were identified in a previous run. Classify each as "covered" or "still missing" based on the current test file contents and diffs. DO NOT add new tests — only classify these exact items. Use the EXACT text from this list in missingTests and coveredTests:\n${previousSuggestions.map((s) => `- ${s}`).join('\n')}\n`
+      : ''
 
   const existingTestsSection =
     existingTestContents.size > 0
@@ -107,7 +113,7 @@ Rules for generatedTests:
 - One entry per missingTests item, same order
 - [] when needsTests is false
 - suggestionBody must be 4-space indented Python assertion(s)
-${existingTestsSection}
+${previousSuggestionsSection}${existingTestsSection}
 Source file diffs (files that may need tests):
 ${sourceDiffsText}
 
