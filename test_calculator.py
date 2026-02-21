@@ -3,7 +3,9 @@ from calculator import *
 
 
 def test_sum_two_positive_integers():
-    pass
+    assert sum(1, 2) == 3
+    assert sum(10, 20) == 30
+    assert sum(100, 1) == 101
 
 
 def test_sum_negative_numbers():
