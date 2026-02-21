@@ -74,6 +74,16 @@ export async function updateComment(
   })
 }
 
+export function parsePreviousSuggestions(body: string): string[] {
+  const match = body.match(/<!-- pr-test-checker: ({.*?}) -->/)
+  if (!match) return []
+  try {
+    return JSON.parse(match[1]).suggestions ?? []
+  } catch {
+    return []
+  }
+}
+
 export function deriveTestFilePath(sourceFile: string): string {
   const parts = sourceFile.split('/')
   const basename = parts[parts.length - 1]

@@ -133,3 +133,59 @@ def test_apply_loyalty_discount_zero_points():
 
 def test_apply_loyalty_discount_negative_points_raises():
     pass
+
+
+def test_apply_referral_discount_standard_uses():
+    from pricing import apply_referral_discount
+    assert apply_referral_discount(100.0, 'REF2024', 1) == 95.0   # 1 use → 5% off
+    assert apply_referral_discount(100.0, 'REF2025', 2) == 90.0   # 2 uses → 10% off
+    assert apply_referral_discount(200.0, 'FRIEND10', 3) == 170.0 # 3 uses → 15% off
+
+
+def test_apply_referral_discount_capped_at_25_percent():
+    from pricing import apply_referral_discount
+    # 6 uses → 30% would exceed cap, should be capped at 25%
+    assert apply_referral_discount(100.0, 'REF2024', 6) == 75.0
+    # 10 uses → 50% would exceed cap, should be capped at 25%
+    assert apply_referral_discount(200.0, 'FRIEND10', 10) == 150.0
+    # exactly at cap: 5 uses → 25%
+    assert apply_referral_discount(100.0, 'REF2025', 5) == 75.0
+
+
+def test_apply_referral_discount_negative_uses_raises():
+    import pytest
+    from pricing import apply_referral_discount
+    with pytest.raises(ValueError, match='Uses cannot be negative'):
+        apply_referral_discount(100.0, 'REF2024', -1)
+    with pytest.raises(ValueError):
+        apply_referral_discount(50.0, 'FRIEND10', -5)
+
+
+def test_apply_referral_discount_invalid_code_raises():
+    import pytest
+    from pricing import apply_referral_discount
+    with pytest.raises(ValueError, match='Invalid referral code: BOGUS'):
+        apply_referral_discount(100.0, 'BOGUS', 1)
+    with pytest.raises(ValueError):
+        apply_referral_discount(100.0, '', 1)
+    with pytest.raises(ValueError):
+        apply_referral_discount(100.0, 'UNKNOWN', 3)
+
+
+def test_apply_referral_discount_zero_uses_returns_original():
+    from pricing import apply_referral_discount
+    assert apply_referral_discount(100.0, 'REF2024', 0) == 100.0
+    assert apply_referral_discount(250.0, 'FRIEND10', 0) == 250.0
+    assert apply_referral_discount(0.0, 'REF2025', 0) == 0.0
+
+
+def test_apply_referral_discount_all_valid_codes_and_case_insensitive():
+    from pricing import apply_referral_discount
+    # All valid codes work
+    assert apply_referral_discount(100.0, 'REF2024', 1) == 95.0
+    assert apply_referral_discount(100.0, 'REF2025', 1) == 95.0
+    assert apply_referral_discount(100.0, 'FRIEND10', 1) == 95.0
+    # Case-insensitive lookup
+    assert apply_referral_discount(100.0, 'ref2024', 1) == 95.0
+    assert apply_referral_discount(100.0, 'Ref2025', 1) == 95.0
+    assert apply_referral_discount(100.0, 'friend10', 1) == 95.0
