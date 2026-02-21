@@ -11,4 +11,6 @@ def test_divide():
 
 
 def test_divide_by_zero():
-    pass
+    import pytest
+    with pytest.raises(ValueError, match="Cannot divide by zero"):
+        divide(5, 0)
