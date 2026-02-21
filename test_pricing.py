@@ -62,3 +62,55 @@ def test_apply_bulk_discount_custom_threshold_and_discount():
     assert apply_bulk_discount(50.0, quantity=5, threshold=5, discount=0.2) == 40.0
     assert apply_bulk_discount(50.0, quantity=4, threshold=5, discount=0.2) == 50.0
     assert apply_bulk_discount(50.0, quantity=10, threshold=5, discount=0.2) == 40.0
+
+
+def test_apply_coupon_valid_code():
+    from pricing import apply_coupon
+    result = apply_coupon(100.0, 'SAVE10')
+    assert result == 90.0, f'Expected 90.0, got {result}'
+
+    result = apply_coupon(200.0, 'SAVE20')
+    assert result == 160.0, f'Expected 160.0, got {result}'
+
+
+def test_apply_coupon_case_insensitive():
+    from pricing import apply_coupon
+    result_upper = apply_coupon(100.0, 'SAVE20')
+    result_lower = apply_coupon(100.0, 'save20')
+    result_mixed = apply_coupon(100.0, 'Save20')
+    assert result_upper == result_lower == result_mixed == 80.0
+
+
+def test_apply_coupon_invalid_code_raises():
+    import pytest
+    from pricing import apply_coupon
+    with pytest.raises(ValueError, match='Invalid coupon code: BOGUS'):
+        apply_coupon(100.0, 'BOGUS')
+
+    with pytest.raises(ValueError):
+        apply_coupon(100.0, '')
+
+
+def test_apply_coupon_halfoff():
+    from pricing import apply_coupon
+    result = apply_coupon(80.0, 'HALFOFF')
+    assert result == 40.0, f'Expected 40.0, got {result}'
+
+    result = apply_coupon(0.0, 'HALFOFF')
+    assert result == 0.0
+
+
+def test_calculate_final_price_with_coupon_and_tax():
+    pass
+
+
+def test_calculate_final_price_no_coupon_applies_tax_only():
+    pass
+
+
+def test_calculate_final_price_no_coupon_zero_tax_returns_original():
+    pass
+
+
+def test_calculate_final_price_invalid_coupon_raises():
+    pass

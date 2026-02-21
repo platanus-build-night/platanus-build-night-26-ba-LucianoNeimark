@@ -80,11 +80,54 @@ export function parsePreviousSuggestions(body: string): string[] {
   return JSON.parse(match[1]).suggestions ?? []
 }
 
+export function parseDeclinedSuggestions(body: string): string[] {
+  const declined: string[] = []
+  const regex = /^- \[x\] (.+)$/gm
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(body)) !== null) {
+    let text = match[1].trim()
+    // Strip markdown artifacts from previous rendering versions
+    text = text
+      .replace(/^~~/, '').replace(/~~\s*$/, '')
+      .replace(/\s*\*\(dismissed[^)]*\)\*/, '')
+      .replace(/\s*\*\(re-open[^)]*\)\*/, '')
+      .trim()
+    declined.push(text)
+  }
+  return declined
+}
+
 export function deriveTestFilePath(sourceFile: string): string {
   const parts = sourceFile.split('/')
   const basename = parts[parts.length - 1]
   parts[parts.length - 1] = `test_${basename}`
   return parts.join('/')
+}
+
+export function parsePassLineNumbers(content: string): Map<string, number> {
+  const result = new Map<string, number>()
+  const lines = content.split('\n')
+  let currentFunc: string | null = null
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const fnMatch = line.match(/^def (test_\w+)\s*\(/)
+    if (fnMatch) {
+      currentFunc = fnMatch[1]
+      continue
+    }
+    if (currentFunc !== null) {
+      const trimmed = line.trim()
+      if (trimmed === 'pass') {
+        result.set(currentFunc, i + 1) // 1-indexed line number
+        currentFunc = null
+      } else if (trimmed !== '' && !trimmed.startsWith('#')) {
+        // Real implementation found — not a stub
+        currentFunc = null
+      }
+    }
+  }
+  return result
 }
 
 export function parseExistingFunctionNames(content: string): Set<string> {
@@ -169,6 +212,33 @@ export async function createOrUpdateSkeletonFile(
 
 export function buildSuggestionBody(test: GeneratedTest): string {
   return `\`\`\`suggestion\n${test.suggestionBody}\n\`\`\``
+}
+
+export async function deletePreviousSuggestions(token: string): Promise<void> {
+  const pr = github.context.payload.pull_request
+  if (!pr) return
+
+  const octokit = github.getOctokit(token)
+  const { owner, repo } = github.context.repo
+
+  const comments = await octokit.paginate(octokit.rest.pulls.listReviewComments, {
+    owner,
+    repo,
+    pull_number: pr.number,
+    per_page: 100,
+  })
+
+  const botSuggestions = comments.filter(
+    (c) => c.user?.login === 'github-actions[bot]' && c.body.includes('```suggestion'),
+  )
+
+  for (const c of botSuggestions) {
+    try {
+      await octokit.rest.pulls.deleteReviewComment({ owner, repo, comment_id: c.id })
+    } catch (err) {
+      console.error(`Failed to delete comment ${c.id}:`, err)
+    }
+  }
 }
 
 export async function postSkeletonReview(
