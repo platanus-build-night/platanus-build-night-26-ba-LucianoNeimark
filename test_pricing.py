@@ -161,7 +161,10 @@ def test_apply_referral_discount_invalid_code_raises():
 
 
 def test_apply_referral_discount_zero_uses_returns_original():
-    pass
+    from pricing import apply_referral_discount
+    assert apply_referral_discount(100.0, 'REF2024', 0) == 100.0
+    assert apply_referral_discount(250.0, 'FRIEND10', 0) == 250.0
+    assert apply_referral_discount(0.0, 'REF2025', 0) == 0.0
 
 
 def test_apply_referral_discount_all_valid_codes_and_case_insensitive():
