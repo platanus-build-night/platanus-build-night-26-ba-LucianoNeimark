@@ -38,6 +38,17 @@ def apply_loyalty_discount(price: float, points: int) -> float:
     return price * (1 - discount)
 
 
+def apply_referral_discount(price: float, referral_code: str, uses: int) -> float:
+    """Apply a referral discount: 5% off per use of the referral code, max 25%."""
+    if uses < 0:
+        raise ValueError("Uses cannot be negative")
+    valid_codes = {"REF2024", "REF2025", "FRIEND10"}
+    if referral_code.upper() not in valid_codes:
+        raise ValueError(f"Invalid referral code: {referral_code}")
+    discount = min(uses * 0.05, 0.25)
+    return price * (1 - discount)
+
+
 def calculate_final_price(price: float, coupon_code: str | None = None, tax_rate: float = 0.0) -> float:
     """Apply optional coupon then tax and return the final price."""
     if coupon_code:
