@@ -1,7 +1,0 @@
-{
-  "dismissed": [
-    "Test that apply_loyalty_discount caps the discount at 15% regardless of how many points are provided",
-    "Test that apply_loyalty_discount with 0 points returns the original price unchanged",
-    "Test that apply_loyalty_discount with negative points raises ValueError"
-  ]
-}
