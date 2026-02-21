@@ -9,7 +9,10 @@ def test_sum_two_positive_integers():
 
 
 def test_sum_negative_numbers():
-    pass
+    assert sum(-1, -2) == -3
+    assert sum(-5, 3) == -2
+    assert sum(5, -3) == 2
+    assert sum(-10, 10) == 0
 
 
 def test_sum_zeros():
