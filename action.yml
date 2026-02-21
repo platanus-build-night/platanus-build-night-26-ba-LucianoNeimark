@@ -1,5 +1,8 @@
 name: 'PR Test Checker'
 description: 'Checks that PRs have semantic test coverage for pytest projects'
+branding:
+  icon: 'check-square'
+  color: 'blue'
 inputs:
   github-token:
     description: 'GitHub token for API access'
