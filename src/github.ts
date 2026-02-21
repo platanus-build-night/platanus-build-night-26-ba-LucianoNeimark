@@ -178,56 +178,7 @@ export async function createOrUpdateSkeletonFile(
 }
 
 export function buildSuggestionBody(test: GeneratedTest): string {
-  return `<!-- test: ${test.functionName} -->\n\`\`\`suggestion\n${test.suggestionBody}\n\`\`\``
-}
-
-export async function getResolvedSuggestions(token: string): Promise<string[]> {
-  const pr = github.context.payload.pull_request
-  if (!pr) return []
-
-  const octokit = github.getOctokit(token)
-  const { owner, repo } = github.context.repo
-
-  const data = await octokit.graphql<{
-    repository: {
-      pullRequest: {
-        reviewThreads: {
-          nodes: Array<{
-            isResolved: boolean
-            comments: { nodes: Array<{ body: string; author: { login: string } | null }> }
-          }>
-        }
-      }
-    }
-  }>(`
-    query GetResolvedThreads($owner: String!, $repo: String!, $number: Int!) {
-      repository(owner: $owner, name: $repo) {
-        pullRequest(number: $number) {
-          reviewThreads(first: 100) {
-            nodes {
-              isResolved
-              comments(first: 1) {
-                nodes {
-                  body
-                  author { login }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `, { owner, repo, number: pr.number })
-
-  const names: string[] = []
-  for (const thread of data.repository.pullRequest.reviewThreads.nodes) {
-    if (!thread.isResolved) continue
-    const comment = thread.comments.nodes[0]
-    if (!comment || comment.author?.login !== 'github-actions[bot]') continue
-    const match = comment.body.match(/<!-- test: (\S+) -->/)
-    if (match) names.push(match[1])
-  }
-  return names
+  return `\`\`\`suggestion\n${test.suggestionBody}\n\`\`\``
 }
 
 export async function deletePreviousSuggestions(token: string): Promise<void> {
