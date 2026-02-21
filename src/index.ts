@@ -114,9 +114,9 @@ async function run(): Promise<void> {
     (t) => !normalizedDeclined.has(normalize(t.description))
   )
 
-  // If filtering emptied missingTests, there's nothing left to fail on
-  if (result.missingTests.length === 0) {
-    result.needsTests = false
+  // missingTests is the single source of truth; derive everything from it
+  result.needsTests = result.missingTests.length > 0
+  if (!result.needsTests) {
     result.generatedTests = []
   }
 
@@ -192,7 +192,7 @@ async function run(): Promise<void> {
     }
   }
 
-  if (result.needsTests && result.missingTests.length > 0) {
+  if (result.missingTests.length > 0) {
     core.setFailed(`Missing tests: ${result.missingTests.join('; ')}`)
   }
 }
