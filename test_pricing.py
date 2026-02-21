@@ -143,7 +143,13 @@ def test_apply_referral_discount_standard_uses():
 
 
 def test_apply_referral_discount_capped_at_25_percent():
-    pass
+    from pricing import apply_referral_discount
+    # 6 uses → 30% would exceed cap, should be capped at 25%
+    assert apply_referral_discount(100.0, 'REF2024', 6) == 75.0
+    # 10 uses → 50% would exceed cap, should be capped at 25%
+    assert apply_referral_discount(200.0, 'FRIEND10', 10) == 150.0
+    # exactly at cap: 5 uses → 25%
+    assert apply_referral_discount(100.0, 'REF2025', 5) == 75.0
 
 
 def test_apply_referral_discount_negative_uses_raises():
