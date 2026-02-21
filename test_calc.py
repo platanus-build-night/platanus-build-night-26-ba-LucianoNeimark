@@ -9,4 +9,6 @@ def test_multiply():
 
 
 def test_division():
-    pass
+    with pytest.raises(ValueError):
+        division(10, 0)
+    assert division(10, 2) == 5.0
